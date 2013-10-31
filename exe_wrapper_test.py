@@ -16,7 +16,8 @@ import string
 import random
 import shutil
 import hashlib
-from exe_wrapper import onerror
+
+import exe_wrapper
 
 def random_string(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
@@ -59,13 +60,44 @@ class TestExeWrapper(unittest.TestCase):
             os.makedirs(r)
 
     def tearDown(self):
-        shutil.rmtree(self.main_dir, onerror=onerror)
+        remove(self.main_dir)
         pass
 
-    def test_shuffle(self):
-        print(self.files)
-        pass
+    def test_init(self):
+        d = os.path.join(self.main_dir, "test_init")
+        exe_wrapper.init(d)
 
+    def test_init_bare(self):
+        d = os.path.join(self.main_dir, "test_init_bare")
+        exe_wrapper.init(d, bare = True)
+
+    def test_init_existing(self):
+        d = os.path.join(self.main_dir, "test_init_existing")
+        os.makedirs(d)
+        exe_wrapper.init(d)
+
+    def test_init_bare_existing(self):
+        d = os.path.join(self.main_dir, "test_init_bare_existing")
+        os.makedirs(d)
+        exe_wrapper.init(d, bare=True)
+
+    def test_init_existing_non_empty(self):
+        d = os.path.join(self.main_dir, "test_init_existing_non_empty")
+        os.makedirs(d)
+        with open(os.path.join(d, "test_file"), mode="w") as f:
+            f.write("test")
+        exe_wrapper.init(d)
+
+    def test_init_bare_existing_non_empty(self):
+        d = os.path.join(self.main_dir, "test_init_bare_existing_non_empty")
+        os.makedirs(d)
+        with open(os.path.join(d, "test_file"), mode="w") as f:
+            f.write("test")
+        with self.assertRaises(exe_wrapper.GitWrapperException):
+            exe_wrapper.init(d, bare=True)
+
+def remove(d):
+    shutil.rmtree(d, onerror=exe_wrapper.onerror)
 
 if __name__ == '__main__':
     unittest.main()

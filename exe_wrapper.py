@@ -29,6 +29,10 @@ class GitWrapperException(Exception):
 def init(wkdir, bare=False, add_all=False):
     if bare and add_all:
         raise GitWrapperException("INIT: can't initialize a bare repo and add files at the same time")
+    if bare and os.path.exists(wkdir) and os.path.isdir(wkdir) and os.listdir(wkdir):
+        raise GitWrapperException("INIT: cannot initialize non-empty bare repository: {}".format(wkdir))
+    if os.path.exists(wkdir) and os.path.isfile(wkdir):
+        raise GitWrapperException("INIT: file exists: {}".format(wkdir))
     s = os.path.split(os.path.abspath(wkdir))
     folder = s[0]
     repo_name = s[1]
