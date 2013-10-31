@@ -26,7 +26,7 @@ class GitWrapperException(Exception):
     def __init__(self, msg):
         print(msg)
 
-def init(wkdir, bare=False, add_all=True):
+def init(wkdir, bare=False, add_all=False):
     if bare and add_all:
         raise GitWrapperException("INIT: can't initialize a bare repo and add files at the same time")
     s = os.path.split(os.path.abspath(wkdir))
@@ -96,7 +96,7 @@ def exec(cmd="", wd="."):
     print("====== BEGIN GIT EXEC ======")
     wd = os.path.abspath(wd)
     cmd = shlex.split(cmd)
-    print("Repo: {}\nCommand: {}\n".format(wd, " ".join(cmd)))
+    print("Wkdir: {}\nCommand: {}\n".format(wd, " ".join(cmd)))
     cmd.insert(0, git_exe)
     proc = Popen(cmd, cwd=wd, stdin=PIPE, stderr=PIPE, stdout=PIPE, shell=True, universal_newlines=True, start_new_session=True)
     print("====== BEGIN GIT OUTPUT ======")
