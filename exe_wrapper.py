@@ -33,7 +33,7 @@ for x in ["repo1","repo2","wkdir1","wkdir2","wkdir3","wkdir4"]:
 class GitWrapperException(Exception):
     def __init__(self, msg):
         logging.error("GitWrapperException: {}".format(msg))
-        print(msg)
+##        print(msg)
 
 class Path():
     def __init__(self, p):
@@ -60,10 +60,10 @@ class Path():
         return os.path.basename(self.p)
     @property
     def isafile(self):
-        return os.path.isfile(self.full_path)
+        return self.type == "file"
     @property
     def isadir(self):
-        return os.path.isdir(self.full_path)
+        return self.type == "dir"
     @property
     def isempty(self):
         if self.isafile:
@@ -75,6 +75,8 @@ class Path():
     @property
     def type(self):
         if os.path.isdir(self.p):
+            if os.path.exists(os.path.join(self.full_path, ".git")):
+                return "repo"
             return "dir"
         elif os.path.isfile(self.p):
             return "file"
@@ -86,6 +88,9 @@ class Path():
     @property
     def exists(self):
         return os.path.exists(self.p)
+    @property
+    def isarepo(self):
+        return self.type == "repo"
     def __str__(self):
         return self.nice_full_path
     def __repr__(self):
@@ -94,111 +99,132 @@ class Path():
 class GitWrapper():
 
     git_exe = Path("git-portable/bin/git.exe")
-    valid_commands = {
-    "clone","init","checkout","push","pull"
-    }
 
-    def __init__(self, wkdir=None, cmd=None, timeout=15):
+    def __init__(self, local_repo, timeout=15):
         if not self.git_exe.exists:
             raise GitWrapperException("could not find Git exe: {}".format(self.git_exe))
-        self._wkdir = wkdir
-        self._cmd = cmd
+        self._local = Path(local_repo)
+        self._wkdir = Path(self._local)
+        self._cmd = None
         self._timeout = 15
-        self._outs= None
-        self._errs = None
+        self._out = "INIT: "
+        self._last_outs = None
+        self._last_errs = None
         self._return_code = None
         self._running = False
         self._ran = False
+        self._is_init = self._local.isarepo
+        self._has_pending_changes = False
 
     def _set_wkdir(self, wkdir):
         wkdir = Path(wkdir)
         if not wkdir.exists:
             raise GitWrapperException("Local working dir does not exist: {}".format(wkdir.full_path))
         self._wkdir = wkdir
+        return self
 
     def set_timeout(self, timeout):
         self._timeout = timeout
+        return self
 
     def _set_cmd(self, cmd):
         if not isinstance(cmd, list):
-            raise GitWrapperException("CMD must be a list: {}".format(cmd))
-        self._cmd = cmd
+            raise GitWrapperException("CMD must be a STR: {}".format(cmd))
+##        self._cmd = "{} {}".format(shlex.quote(self.git_exe.full_path), cmd)
+##        self._cmd = [self.git_exe.full_path, cmd]
+        self._cmd = [x for x in cmd if x != ""]
+        self._cmd.insert(0, self.git_exe.full_path)
+        return self
 
     def _run(self):
         self._running = True
+        self._out += "WKDIR: {}\n".format(self._wkdir.nice_full_path)
+##        self._out += "RUNNING: {}\n".format(" ".join([x for x in self._cmd[1:]]))
+        self._out += "RUNNING: {}\n".format(self._cmd)
         proc = Popen(args=self._cmd, cwd=self._wkdir.full_path, stdin=PIPE, stderr=PIPE, stdout=PIPE, shell=True, universal_newlines=True, start_new_session=True)
         try:
-            self._outs, self._errs = proc.communicate(timeout=self._timeout)
+            outs, errs = proc.communicate(timeout=self._timeout)
+            if outs:
+                self._out += outs
+                self._last_outs = outs
+            else: self._last_outs = None
+            if errs:
+                self._errs += errs
+                self._last_errs = errs
+            else: self._last_errs = None
         except TimeoutExpired:
             proc.kill()
-            self._outs, self._errs = proc.communicate()
+            outs, errs = proc.communicate(timeout=self._timeout)
+            if outs:
+                self._out += outs
+                self._last_outs = outs
+            else: self._last_outs = None
+            if errs:
+                self._errs += errs
+                self._last_errs = errs
+            else: self._last_errs = None
         self._running = False
         self._ran = True
         self._return_code = proc.returncode
+        self._out += "=======================================\n"
+        if self._return_code != 0:
+            raise GitWrapperException("RUN: error not handled:\n\n{}\n\nReturn code: {}".format(self._out, self._return_code))
+        self._parse_output()
+        return self
+
+    def _parse_output(self):
+        pass
 
     @property
-    def outs(self):
-        return self._outs
+    def out(self):
+        return self._out
 
-    @property
-    def errs(self):
-        return self._errs
+    def clear_history(self):
+        self._out = ""
 
     @property
     def return_code(self):
         return self._return_code
 
-    def init(self, local, bare=False):
-        cmd = []
-        cmd.append(self.git_exe.full_path)
-        cmd.append("init")
-        local = Path(local)
-        if local.exists:
-            if local.isafile:
-                raise GitWrapperException("INIT: local is a file: {}".format(local))
-            if not local.isempty:
-                raise GitWrapperException("INIT: local is not empty: {}".format(local))
+    def init(self, bare=False):
+        cmd = ["init"]
+        wkdir = Path(self._local.dirname)
+        repo = Path(self._local.basename)
+        if repo.exists:
+            if repo.isafile:
+                raise GitWrapperException("INIT: local repository is a file: {}".format(repo))
         if bare:
+##            cmd = "{} --bare".format(cmd)
             cmd.append("--bare")
-        cmd.append(local.basename)
-        self._set_wkdir(local.dirname)
-        self._set_cmd(cmd)
-        self._run()
+##        cmd = "{} {}".format(cmd, shlex.quote(repo.basename))
+        cmd.append(shlex.quote(repo.basename))
+        self._set_wkdir(wkdir)._set_cmd(cmd)._run()._set_wkdir(self._local)
 
+    def status(self):
+        self._set_cmd(["status"])._run()
 
-def init(wkdir, bare=False, add_all=False):
-    if bare and add_all:
-        raise GitWrapperException("INIT: can't initialize a bare repo and add files at the same time")
-    if bare and os.path.exists(wkdir) and os.path.isdir(wkdir) and os.listdir(wkdir):
-        raise GitWrapperException("INIT: cannot initialize non-empty bare repository: {}".format(wkdir))
-    if os.path.exists(wkdir) and os.path.isfile(wkdir):
-        raise GitWrapperException("INIT: file exists: {}".format(wkdir))
-    s = os.path.split(os.path.abspath(wkdir))
-    folder = s[0]
-    repo_name = s[1]
-    print(folder, repo_name)
-    bare = "" if bare is False else "--bare"
-    repo_name = shlex.quote(repo_name)
-    exec("init {} {}".format(bare, repo_name), wd=folder)
-    if add_all:
-        exec("add .", wd=wkdir)
+    def __str__(self):
+        return self._out
 
-def commit(wkdir, files=None, msg="auto-commit"):
-    if not os.path.exists(wkdir):
-        raise GitWrapperException("COMMIT: wkdir does not exist:\n\n\
-        Wkdir: {}\n\n\
-        Full path:{}".format(wkdir, os.path.abspath(wkdir)))
-    if files is None:
-        files = "-a"
-    else:
-        if type(files) is list:
+    def commit(self, files="-a", msg="auto-commit", amend=False, dry_run=False):
+        cmd = ["commit"]
+        if isinstance(files, str):
+            files=[shlex.quote(files)]
+        elif not isinstance(files, list):
+            raise GitWrapperException("COMMIT: files can only be STR or LIST\nReceived {} ({})".format(files, type(files)))
+        else:
             files = [shlex.quote(f) for f in files]
-        elif type(files) is str:
-            files = shlex.quote(files)
-    msg = shlex.quote(msg)
-    outs, errs, return_code = exec("commit {} -m {}".format(files, msg), wd=wkdir)
-    if return_code != 0:
-        raise GitWrapperException("COMMIT: unhandled error:\n{}".format(errs))
+        cmd.append("--amend" if amend else "")
+        cmd.append("--dry-run" if dry_run else "")
+        cmd.append("-m {}".format(shlex.quote(msg)))
+        cmd.append(" ".join(files))
+        try:
+            self._set_cmd(cmd)._run()
+        except GitWrapperException:
+            if 'nothing to commit (create/copy files and use "git add" to track)' in self._out.split("\n"):
+                self._has_pending_changes = False
+            else:
+                raise
 
 
 def push(wkdir, remote_name="origin", branch="master"):
@@ -236,26 +262,6 @@ def clone(remote_address, wkdir, branch="master"):
     if return_code != 0:
         raise GitWrapperException("CLONE: unhandled error:\n{}".format(errs))
 
-##def exec(cmd="", wd="."):
-##    print("====== BEGIN GIT EXEC ======")
-##    wd = os.path.abspath(wd)
-##    cmd = shlex.split(cmd)
-##    print("Wkdir: {}\nCommand: {}\n".format(wd, " ".join(cmd)))
-##    cmd.insert(0, git_exe)
-##    proc = Popen(cmd, cwd=wd, stdin=PIPE, stderr=PIPE, stdout=PIPE, shell=True, universal_newlines=True, start_new_session=True)
-##    print("====== BEGIN GIT OUTPUT ======")
-##    try:
-##        outs, errs = proc.communicate(timeout=15)
-##        print(outs, errs)
-##    except TimeoutExpired:
-##        proc.kill()
-##        outs, errs = proc.communicate()
-##        print("====== PROCESS TIMED OUT ======")
-##        print(outs, errs)
-##    print("====== END OF GIT OUTPUT ======")
-##    print("====== END OF GIT EXEC ======")
-##    return (outs, errs, proc.returncode)
-
 def onerror(func, path, exc_info):
     """
     Error handler for ``shutil.rmtree``.
@@ -276,36 +282,23 @@ def onerror(func, path, exc_info):
 
 
 def main():
-##    exec()
-##    exec("--version")
-##    exec("help merge")
-##    exec("status", tests["wkdir1"])
-##    exec("push", tests["wkdir1"])
-##    exec("pull", tests["wkdir1"])
-##    os.remove(tests["wkdir3"])
-
-##    if os.path.exists(tests["wkdir3"]):
-##        shutil.rmtree(tests["wkdir3"], onerror=onerror)
-##    clone(tests["repo1"], tests["wkdir3"])
-##    pull(tests["wkdir3"])
-##    push(tests["wkdir3"])
-##    with open(os.path.join(tests["wkdir3"], "repo1.file1.txt")) as f:
-##        l = f.readlines()
-##    l.append("\ntest_line_add")
-##    with open(os.path.join(tests["wkdir3"], "repo1.file1.txt"), mode="w") as f:
-##        f.writelines(l)
-##    commit(tests["wkdir3"], "*.txt","test message")
-##    exec("status",tests["wkdir3"])
-##    push(tests["wkdir3"])
-##    exec("update-ref HEAD \"HEAD^\"", tests["repo1"])
-
-##    init_test_repo = os.path.join(tests_path, "test_init")
-##    init(init_test_repo)
-##    shutil.rmtree(init_test_repo, onerror=onerror)
-##    logger.debug("test")
-    t = GitWrapper()
-    t.init("./test_init")
-    print(t.outs)
+    t = GitWrapper("test init")
+    t.init()
+##    print(t)
+    t.status()
+##    print(t)
+    t.commit(msg="caribou meuh tchoutchou")
+##    p = t._out.split("\n")
+##    for x in p:
+##        print(x)
+    print(t._last_errs)
+##    print(t)
+##    t.commit(files="file1")
+##    print(t)
+##    t.commit(files=["files 1","file 2"])
+##    print(t)
+####    t.commit(files=None) # MUST RAISE EXCEPTION
+    t = GitWrapper("test init 2")
 
 
 if __name__ == '__main__':
