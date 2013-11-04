@@ -11,6 +11,9 @@
 #!/usr/bin/env python
 
 from subprocess import Popen, PIPE, TimeoutExpired
+from path import Path
+from git_exceptions import GitWrapperException
+from shutil_rmtree import onerror
 import shlex
 import os
 import shutil
@@ -30,71 +33,8 @@ tests = {}
 for x in ["repo1","repo2","wkdir1","wkdir2","wkdir3","wkdir4"]:
     tests[x] = os.path.abspath(os.path.join(tests_path, x))
 
-class GitWrapperException(Exception):
-    def __init__(self, msg):
-        logging.error("GitWrapperException: {}".format(msg))
-##        print(msg)
 
-class Path():
-    def __init__(self, p):
-        if isinstance(p, Path):
-            self.p = p.p
-        elif isinstance(p, str):
-            self.p = p
-        else:
-            raise Exception("Path only accepts String or other Path as input")
-    @property
-    def nice_path(self):
-        return os.path.normcase(os.path.normpath(self.p))
-    @property
-    def nice_full_path(self):
-        return os.path.normcase(os.path.normpath(self.abs))
-    @property
-    def full_path(self):
-        return self.abs
-    @property
-    def abs(self):
-        return os.path.abspath(self.p)
-    @property
-    def basename(self):
-        return os.path.basename(self.p)
-    @property
-    def isafile(self):
-        return self.type == "file"
-    @property
-    def isadir(self):
-        return self.type == "dir"
-    @property
-    def isempty(self):
-        if self.isafile:
-            if os.stat(self.full_path).st_size == 0:
-                return True
-        elif not os.listdir(self.full_path):
-            return True
-        return False
-    @property
-    def type(self):
-        if os.path.isdir(self.p):
-            if os.path.exists(os.path.join(self.full_path, ".git")):
-                return "repo"
-            return "dir"
-        elif os.path.isfile(self.p):
-            return "file"
-        else:
-            return "other"
-    @property
-    def dirname(self):
-        return os.path.dirname(self.abs)
-    @property
-    def exists(self):
-        return os.path.exists(self.p)
-    @property
-    def isarepo(self):
-        return self.type == "repo"
-    def __str__(self):
-        return self.nice_full_path
-    def __repr__(self):
-        return self.__str__()
+##        print(msg)
 
 class GitWrapper():
 
@@ -114,7 +54,7 @@ class GitWrapper():
         self._running = False
         self._ran = False
         self._is_init = self._local.isarepo
-        self._has_pending_changes = False
+        self._nothing_to_commit = False
 
     def _set_wkdir(self, wkdir):
         wkdir = Path(wkdir)
@@ -168,12 +108,14 @@ class GitWrapper():
         self._return_code = proc.returncode
         self._out += "=======================================\n"
         if self._return_code != 0:
+            self._parse_output()
             raise GitWrapperException("RUN: error not handled:\n\n{}\n\nReturn code: {}".format(self._out, self._return_code))
         self._parse_output()
         return self
 
     def _parse_output(self):
-        pass
+        if 'nothing to commit (create/copy files and use "git add" to track)' in self._last_outs.split("\n"):
+            self._nothing_to_commit = True
 
     @property
     def out(self):
@@ -207,13 +149,14 @@ class GitWrapper():
         return self._out
 
     def commit(self, files="-a", msg="auto-commit", amend=False, dry_run=False):
-        cmd = ["commit"]
         if isinstance(files, str):
             files=[shlex.quote(files)]
-        elif not isinstance(files, list):
-            raise GitWrapperException("COMMIT: files can only be STR or LIST\nReceived {} ({})".format(files, type(files)))
-        else:
+        elif isinstance(files, list):
             files = [shlex.quote(f) for f in files]
+        else:
+            raise GitWrapperException("COMMIT: files can only be STR or LIST\nReceived {} ({})".format(files, type(files)))
+        self._nothing_to_commit = False
+        cmd = ["commit"]
         cmd.append("--amend" if amend else "")
         cmd.append("--dry-run" if dry_run else "")
         cmd.append("-m {}".format(shlex.quote(msg)))
@@ -221,8 +164,8 @@ class GitWrapper():
         try:
             self._set_cmd(cmd)._run()
         except GitWrapperException:
-            if 'nothing to commit (create/copy files and use "git add" to track)' in self._out.split("\n"):
-                self._has_pending_changes = False
+            if self._nothing_to_commit:
+                pass
             else:
                 raise
 
@@ -262,23 +205,7 @@ def clone(remote_address, wkdir, branch="master"):
     if return_code != 0:
         raise GitWrapperException("CLONE: unhandled error:\n{}".format(errs))
 
-def onerror(func, path, exc_info):
-    """
-    Error handler for ``shutil.rmtree``.
 
-    If the error is due to an access error (read only file)
-    it attempts to add write permission and then retries.
-
-    If the error is for another reason it re-raises the error.
-
-    Usage : ``shutil.rmtree(path, onerror=onerror)``
-    """
-    if not os.access(path, os.W_OK):
-        # Is the error an access error ?
-        os.chmod(path, stat.S_IWUSR)
-        func(path)
-    else:
-        raise
 
 
 def main():
