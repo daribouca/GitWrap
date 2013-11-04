@@ -11,7 +11,7 @@
 #!/usr/bin/env python
 
 from subprocess import Popen, PIPE, TimeoutExpired
-from path import Path
+from custom_path import Path
 from git_exceptions import GitWrapperException
 from shutil_rmtree import onerror
 import shlex
@@ -19,6 +19,41 @@ import os
 import shutil
 import stat
 import logging
+
+
+"""
+VALID REPOS URLs:
+
+
+    ssh://[user@]host.xz[:port]/path/to/repo.git/
+
+    git://host.xz[:port]/path/to/repo.git/
+
+    http[s]://host.xz[:port]/path/to/repo.git/
+
+    ftp[s]://host.xz[:port]/path/to/repo.git/
+
+    rsync://host.xz/path/to/repo.git/
+
+An alternative scp-like syntax may also be used with the ssh protocol:
+
+    [user@]host.xz:path/to/repo.git/
+
+The ssh and git protocols additionally support ~username expansion:
+
+    ssh://[user@]host.xz[:port]/~[user]/path/to/repo.git/
+
+    git://host.xz[:port]/~[user]/path/to/repo.git/
+
+    [user@]host.xz:/~[user]/path/to/repo.git/
+
+For local repositories, also supported by git natively, the following syntaxes may be used:
+
+    /path/to/repo.git/
+
+    file:///path/to/repo.git/
+
+"""
 
 logger = logging.getLogger()
 ch = logging.StreamHandler()
@@ -28,26 +63,21 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 git_exe = os.path.abspath("git-portable/bin/git.exe")
-tests_path = os.path.join(os.curdir, "tests")
-tests = {}
-for x in ["repo1","repo2","wkdir1","wkdir2","wkdir3","wkdir4"]:
-    tests[x] = os.path.abspath(os.path.join(tests_path, x))
-
-
-##        print(msg)
 
 class GitWrapper():
 
     git_exe = Path("git-portable/bin/git.exe")
 
-    def __init__(self, local_repo, timeout=15):
+    def __init__(self, local_repo, timeout=15, git_exe=None):
+        if git_exe is not None:
+            self.git_exe = Path(git_exe)
         if not self.git_exe.exists:
             raise GitWrapperException("could not find Git exe: {}".format(self.git_exe))
         self._local = Path(local_repo)
         self._wkdir = Path(self._local)
         self._cmd = None
         self._timeout = 15
-        self._out = "INIT: "
+        self._out = "INIT NEW REPO: {}\n".format(local_repo)
         self._last_outs = None
         self._last_errs = None
         self._return_code = None
@@ -156,11 +186,13 @@ class GitWrapper():
         else:
             raise GitWrapperException("COMMIT: files can only be STR or LIST\nReceived {} ({})".format(files, type(files)))
         self._nothing_to_commit = False
-        cmd = ["commit"]
-        cmd.append("--amend" if amend else "")
-        cmd.append("--dry-run" if dry_run else "")
-        cmd.append("-m {}".format(shlex.quote(msg)))
-        cmd.append(" ".join(files))
+        cmd = [
+            "commit",
+            "--amend" if amend else "",
+            "--dry-run" if dry_run else "",
+            "-m {}".format(shlex.quote(msg)),
+            " ".join(files)
+        ]
         try:
             self._set_cmd(cmd)._run()
         except GitWrapperException:
@@ -169,44 +201,53 @@ class GitWrapper():
             else:
                 raise
 
+    def push(self, remote_name="origin", branch="master", with_tags=True, force=False, dry_run=False, prune=False, mirror=False):
+        if not self._local.exists:
+            raise GitWrapperException("PUSH: local repo does not exist yet: {}".format(self._local.full_path))
+        remote_name, branch = shlex.quote(remote_name), shlex.quote(branch)
+        cmd = [
+            "push",
+            "--tags" if with_tags else "",
+            "--force" if force else "",
+            "--prune" if prune else "",
+            "-n" if dry_run else "",
+            "--mirror" if mirror else "",
+            remote_name,
+            branch
+        ]
+        self._set_cmd(cmd)._run()
 
-def push(wkdir, remote_name="origin", branch="master"):
-    if not os.path.exists(wkdir):
-        raise GitWrapperException("PUSH: wkdir does not exist:\n\n\
-        Wkdir: {}\n\n\
-        Full path:{}".format(wkdir, os.path.abspath(wkdir)))
-    remote_name = shlex.quote(remote_name)
-    branch = shlex.quote(branch)
-    outs, errs, return_code = exec("push {} {}".format(remote_name, branch), wd=wkdir)
-    if return_code != 0:
-        raise GitWrapperException("PUSH: unhandled error:\n{}".format(errs))
+    def pull(self, remote_name="origin", branch="master", update_submodules=False, no_commit=False,
+            no_fast_forward=False, only_fast_forward=False, rebase=False):
+        if not self._local.exists:
+            raise GitWrapperException("PULL: local repo does not exist yet: {}".format(self._local.full_path))
+        remote_name, branch = shlex.quote(remote_name), shlex.quote(branch)
+        cmd = [
+            "pull",
+            "--recurse-submodules" if update_submodules else "",
+            "--no-commit" if no_commit else "",
+            "--no-ff" if no_fast_forward else "",
+            "--ff-only" if only_fast_forward else "",
+            "--rebase" if rebase else "",
+            remote_name,
+            branch
+        ]
+        self._set_cmd(cmd)._run()
 
-def pull(wkdir, remote_name="origin", branch="master"):
-    if not os.path.exists(wkdir):
-        raise GitWrapperException("PULL: wkdir does not exist:\n\n\
-        Wkdir: {}\n\n\
-        Full path:{}".format(wkdir, os.path.abspath(wkdir)))
-    remote_name = shlex.quote(remote_name)
-    branch = shlex.quote(branch)
-    outs, errs, return_code = exec("pull {} {}".format(remote_name, branch), wd=wkdir)
-    if return_code != 0:
-        raise GitWrapperException("PULL: unhandled error:\n{}".format(errs))
-
-def clone(remote_address, wkdir, branch="master"):
-    if os.path.exists(wkdir) and os.listdir(wkdir):
-        raise GitWrapperException("CLONE: wkdir exists and is not empty:\n\n\
-        Wkdir: {}\n\n\
-        Full path: {}".format(os.path.basename(wkdir), wkdir))
-    wkdir = os.path.abspath(wkdir)
-    remote_address = shlex.quote(remote_address)
-    wkdir = shlex.quote(wkdir)
-    branch = shlex.quote(branch)
-    outs, errs, return_code = exec("clone {} {} -b {}".format(remote_address, wkdir, branch))
-    if return_code != 0:
-        raise GitWrapperException("CLONE: unhandled error:\n{}".format(errs))
-
-
-
+    def clone(self, remote_address, target_directory=None, bare=False, recursive=True,
+                branch=None, no_checkout=False):
+        if target_directory is not None:
+            target_directory = Path(target_directory)
+            self._set_wkdir(tg.dirname)
+        cmd = [
+            "clone", shlex.quote(remote_address),
+            shlex.quote(Path(tg).basename) if target_directory is not None else "",
+            "--bare" if bare else "",
+            "--recursive" if recursive else "",
+            "--branch {}".format(shlex.quote(branch)) if branch is not None else "",
+            "--no-checkout" if no_checkout else "",
+        ]
+        self._set_cmd(cmd)._run()
 
 def main():
     t = GitWrapper("test init")
@@ -218,7 +259,7 @@ def main():
 ##    p = t._out.split("\n")
 ##    for x in p:
 ##        print(x)
-    print(t._last_errs)
+    print(t)
 ##    print(t)
 ##    t.commit(files="file1")
 ##    print(t)
@@ -226,6 +267,7 @@ def main():
 ##    print(t)
 ####    t.commit(files=None) # MUST RAISE EXCEPTION
     t = GitWrapper("test init 2")
+    print(t)
 
 
 if __name__ == '__main__':
