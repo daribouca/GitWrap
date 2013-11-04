@@ -100,8 +100,6 @@ class GitWrapper():
     def _set_cmd(self, cmd):
         if not isinstance(cmd, list):
             raise GitWrapperException("CMD must be a STR: {}".format(cmd))
-##        self._cmd = "{} {}".format(shlex.quote(self.git_exe.full_path), cmd)
-##        self._cmd = [self.git_exe.full_path, cmd]
         self._cmd = [x for x in cmd if x != ""]
         self._cmd.insert(0, self.git_exe.full_path)
         return self
@@ -109,7 +107,6 @@ class GitWrapper():
     def _run(self):
         self._running = True
         self._out += "WKDIR: {}\n".format(self._wkdir.nice_full_path)
-##        self._out += "RUNNING: {}\n".format(" ".join([x for x in self._cmd[1:]]))
         self._out += "RUNNING: {}\n".format(self._cmd)
         proc = Popen(args=self._cmd, cwd=self._wkdir.full_path, stdin=PIPE, stderr=PIPE, stdout=PIPE, shell=True, universal_newlines=True, start_new_session=True)
         try:
@@ -166,9 +163,7 @@ class GitWrapper():
             if repo.isafile:
                 raise GitWrapperException("INIT: local repository is a file: {}".format(repo))
         if bare:
-##            cmd = "{} --bare".format(cmd)
             cmd.append("--bare")
-##        cmd = "{} {}".format(cmd, shlex.quote(repo.basename))
         cmd.append(shlex.quote(repo.basename))
         self._set_wkdir(wkdir)._set_cmd(cmd)._run()._set_wkdir(self._local)
 
