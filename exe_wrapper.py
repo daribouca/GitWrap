@@ -12,6 +12,7 @@
 
 from subprocess import Popen, PIPE, TimeoutExpired
 from custom_path import Path
+import git_exceptions
 from git_exceptions import GitWrapperException
 from shutil_rmtree import onerror
 import shlex
@@ -93,6 +94,7 @@ class GitWrapper():
         self._ran = False
         self._is_init = self._local.isarepo
         self._nothing_to_commit = False
+        self._local_already_exists_and_is_not_empty = False
 
     def _set_wkdir(self, wkdir):
         wkdir = Path(wkdir)
@@ -150,16 +152,21 @@ class GitWrapper():
         self._return_code = proc.returncode
         self._out += "=======================================\n"
         if self._return_code != 0:
+            print(self._last_outs)
+            print(self._last_errs)
             self._parse_output()
             raise GitWrapperException("RUN: error not handled:\n\n{}\n\nReturn code: {}".format(self._out, self._return_code))
         self._parse_output()
         return self
 
     def _parse_output(self):
-        if self._last_outs is None:
-            return
-        if 'nothing to commit (create/copy files and use "git add" to track)' in self._last_outs.split("\n"):
-            self._nothing_to_commit = True
+        if self._last_outs is not None:
+            if 'nothing to commit (create/copy files and use "git add" to track)' in self._last_outs.split("\n"):
+                self._nothing_to_commit = True
+        if self._last_errs is not None:
+            if "fatal: destination path '{}' already exists and is not an empty directory.".format(self._local.basename) in self._last_errs.split("\n"):
+                self._local_already_exists_and_is_not_empty = True
+                raise git_exceptions.GitRepositoryAlreadyExistsAndIsNotEmpty(self._local.nice_full_path)
 
     @property
     def out(self):
@@ -272,6 +279,23 @@ class GitWrapper():
 ##            shlex.quote(Path(remote_address).nice_full_path),
             shlex.quote(Path(target_directory).basename) if target_directory is not None else ""
         ]
-        self._set_cmd(cmd)._run()
+##        print(self._wkdir.full_path)
+##        print(remote_address)
+##        print(Path(remote_address).basename)
+##        print(os.path.join(self._wkdir.full_path, Path(remote_address).basename))
+##        print(Path(os.path.join(self._wkdir.full_path, Path(remote_address).basename)))
+        if target_directory is None:
+            self._local = Path(os.path.join(self._wkdir.full_path, Path(remote_address).basename))
+        else:
+            self._local = Path(target_directory)
+##        print(self._local.basename)
+##        print("fatal: destination path '{}' already exists and is not an empty directory.".format(self._local.basename))
+        try:
+            self._set_cmd(cmd)._run()
+        except GitWrapperException:
+            if self._local_already_exists_and_is_not_empty:
+                pass
+            else:
+                raise
         return self
 

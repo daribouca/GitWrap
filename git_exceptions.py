@@ -15,3 +15,7 @@ import logging
 class GitWrapperException(Exception):
     def __init__(self, msg):
         logging.error("GitWrapperException: {}".format(msg))
+
+class GitRepositoryAlreadyExistsAndIsNotEmpty(Exception):
+    def __init__(self, msg):
+        super().__init__(msg)
