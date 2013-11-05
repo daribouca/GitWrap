@@ -3,3 +3,5 @@ __pycache__
 *.psproj
 tests/
 git-portable/
+.coverage
+cover/

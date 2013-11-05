@@ -19,7 +19,14 @@ import os
 import shutil
 import stat
 import logging
+import re
 
+re_valid_repo_urls = [
+    re.compile(r"\Assh://(.*@)?.*\..*(:[0-9]{1,5})?(./)*\Z"),
+    re.compile(r"\A(git|http(s)?|ftp(s)?)://.*\..*(:[0-9]{1,5})?(./)*\Z"),
+    re.compile(r"\Arsync://.*\..*(./)*\Z"),
+    re.compile(r"\A(.*@)?.*\..*(./)*\Z")
+]
 
 """
 VALID REPOS URLs:
@@ -94,12 +101,17 @@ class GitWrapper():
         return self
 
     def set_timeout(self, timeout):
+        if not isinstance(timeout, int) or 1 > timeout or timeout > 120:
+            raise GitWrapperException("Invalid timeout: {}".format(timeout))
         self._timeout = timeout
         return self
 
     def _set_cmd(self, cmd):
         if not isinstance(cmd, list):
-            raise GitWrapperException("CMD must be a STR: {}".format(cmd))
+            raise GitWrapperException("CMD must be a LIST of STR: {}".format(cmd))
+        for x in cmd:
+            if not isinstance(x, str):
+                raise GitWrapperException("CMD must be a LIST of STR: {}\n{} is not a string".format(cmd, x))
         self._cmd = [x for x in cmd if x != ""]
         self._cmd.insert(0, self.git_exe.full_path)
         return self
@@ -155,12 +167,16 @@ class GitWrapper():
     def return_code(self):
         return self._return_code
 
+    @property
+    def full_path(self):
+        return self._local.nice_full_path
+
     def init(self, bare=False):
         cmd = ["init"]
         wkdir = Path(self._local.dirname)
         repo = Path(self._local.basename)
-        if repo.exists:
-            if repo.isafile:
+        if self._local.exists:
+            if self._local.isafile:
                 raise GitWrapperException("INIT: local repository is a file: {}".format(repo))
         if bare:
             cmd.append("--bare")
