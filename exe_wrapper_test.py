@@ -10,8 +10,10 @@
 #-------------------------------------------------------------------------------
 #!/usr/bin/env python
 
+import sys, os
+sys.path = [os.path.abspath(os.path.dirname(__file__))] + sys.path
+
 import unittest
-import os
 import string
 import random
 import shutil
