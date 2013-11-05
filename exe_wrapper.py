@@ -152,17 +152,21 @@ class GitWrapper():
         self._return_code = proc.returncode
         self._out += "=======================================\n"
         if self._return_code != 0:
-            print(self._last_outs)
-            print(self._last_errs)
             self._parse_output()
-            raise GitWrapperException("RUN: error not handled:\n\n{}\n\nReturn code: {}".format(self._out, self._return_code))
+            raise GitWrapperException("RUN: error not handled:\n\nLAST OUT:{}\nLAST ERR:{}\n\nReturn code: {}".format(self._last_outs, self._last_errs, self._return_code))
         self._parse_output()
         return self
 
     def _parse_output(self):
         if self._last_outs is not None:
-            if 'nothing to commit (create/copy files and use "git add" to track)' in self._last_outs.split("\n"):
-                self._nothing_to_commit = True
+            s_out = self._last_outs.split("\n")
+            for s in [
+                'nothing added to commit but untracked files present (use "git add" to track)',
+                'nothing to commit (create/copy files and use "git add" to track)',
+                'nothing to commit, working directory clean'
+            ]:
+                if s in s_out:
+                    self._nothing_to_commit = True
         if self._last_errs is not None:
             if "fatal: destination path '{}' already exists and is not an empty directory.".format(self._local.basename) in self._last_errs.split("\n"):
                 self._local_already_exists_and_is_not_empty = True
@@ -217,9 +221,10 @@ class GitWrapper():
             "commit",
             "--amend" if amend else "",
             "--dry-run" if dry_run else "",
-            "-m {}".format(shlex.quote(msg)),
-            " ".join(files)
+            "-m {}".format(shlex.quote(msg))
         ]
+        for f in files:
+            cmd.append(f)
         try:
             self._set_cmd(cmd)._run()
         except GitWrapperException:
@@ -290,12 +295,6 @@ class GitWrapper():
             self._local = Path(target_directory)
 ##        print(self._local.basename)
 ##        print("fatal: destination path '{}' already exists and is not an empty directory.".format(self._local.basename))
-        try:
-            self._set_cmd(cmd)._run()
-        except GitWrapperException:
-            if self._local_already_exists_and_is_not_empty:
-                pass
-            else:
-                raise
+        self._set_cmd(cmd)._run()
         return self
 

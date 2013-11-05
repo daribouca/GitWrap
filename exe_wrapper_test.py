@@ -24,6 +24,7 @@ import glob
 
 import exe_wrapper
 import git_exceptions
+import custom_path
 
 def random_string(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
@@ -118,14 +119,22 @@ class TestExeWrapper(unittest.TestCase):
         t.init()
         t.status()
 
-##    def test_commit(self):
-##        d = os.path.join(self.main_dir, "test_commit")
-##        for x in range(10):
-##            make_random_file(d)
-##        t = exe_wrapper.GitWrapper(d)
-##        with self.assertRaises(git_exceptions.GitWrapperException):
-##            t.init().commit()
-##        t.init(add_all=True).commit()
+    def test_commit(self):
+        d = os.path.join(self.main_dir, "test_commit")
+        files = []
+        for x in range(10):
+            files.append(make_random_file(d))
+        t = exe_wrapper.GitWrapper(d)
+        t.init().commit()
+        self.assertTrue(t._nothing_to_commit)
+        t.init(add_all=True).commit([custom_path.Path(f).basename for f in files[:2]])
+        self.assertFalse(t._nothing_to_commit)
+        t.commit()
+        self.assertFalse(t._nothing_to_commit)
+        with self.assertRaises(git_exceptions.GitWrapperException):
+            t.commit(files=None)
+        t.commit()
+        self.assertTrue(t._nothing_to_commit)
 
     def test_clone(self):
         d = os.path.join(self.main_dir, "test_clone")
@@ -140,7 +149,8 @@ class TestExeWrapper(unittest.TestCase):
         self.assertEqual(os.path.join(d2, os.path.basename(d1)).lower(), t2.full_path)
         t3 = exe_wrapper.GitWrapper("").clone(t2.full_path, target_directory=d3)
         self.assertEqual(d3.lower(), t3.full_path)
-        t4 = exe_wrapper.GitWrapper(d).clone(t3.full_path)
+        with self.assertRaises(git_exceptions.GitRepositoryAlreadyExistsAndIsNotEmpty):
+            t4 = exe_wrapper.GitWrapper(d).clone(t3.full_path)
         l1 = os.listdir(t1.full_path)
         l2 = os.listdir(t2.full_path)
         l3 = os.listdir(t3.full_path)
