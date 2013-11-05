@@ -17,7 +17,6 @@ from shutil_rmtree import onerror
 import shlex
 import os
 import shutil
-import stat
 import logging
 import re
 
@@ -75,12 +74,14 @@ class GitWrapper():
 
     git_exe = Path("git-portable/bin/git.exe")
 
-    def __init__(self, local_repo, timeout=15, git_exe=None):
+    def __init__(self, local_repo, timeout=15, git_exe=None, must_be_empty=False):
         if git_exe is not None:
             self.git_exe = Path(git_exe)
         if not self.git_exe.exists:
             raise GitWrapperException("could not find Git exe: {}".format(self.git_exe))
         self._local = Path(local_repo)
+        if must_be_empty and not self._local.isempty:
+            raise GitWrapperException("local repo is not empty: {}".format(self._local))
         self._wkdir = Path(self._local)
         self._cmd = None
         self._timeout = 15
@@ -117,6 +118,8 @@ class GitWrapper():
         return self
 
     def _run(self):
+        if not self._wkdir.exists:
+            raise GitWrapperException("RUN: WKDIR does not exist: {}".format(self._wkdir.nice_full_path))
         self._running = True
         self._out += "WKDIR: {}\n".format(self._wkdir.nice_full_path)
         self._out += "RUNNING: {}\n".format(self._cmd)
@@ -128,7 +131,7 @@ class GitWrapper():
                 self._last_outs = outs
             else: self._last_outs = None
             if errs:
-                self._errs += errs
+                self._out += errs
                 self._last_errs = errs
             else: self._last_errs = None
         except TimeoutExpired:
@@ -153,6 +156,8 @@ class GitWrapper():
         return self
 
     def _parse_output(self):
+        if self._last_outs is None:
+            return
         if 'nothing to commit (create/copy files and use "git add" to track)' in self._last_outs.split("\n"):
             self._nothing_to_commit = True
 
@@ -171,17 +176,21 @@ class GitWrapper():
     def full_path(self):
         return self._local.nice_full_path
 
-    def init(self, bare=False):
-        cmd = ["init"]
+    def init(self, bare=False, add_all=False):
         wkdir = Path(self._local.dirname)
         repo = Path(self._local.basename)
         if self._local.exists:
             if self._local.isafile:
                 raise GitWrapperException("INIT: local repository is a file: {}".format(repo))
-        if bare:
-            cmd.append("--bare")
-        cmd.append(shlex.quote(repo.basename))
+        cmd = [
+            "init",
+            "--bare" if bare else "",
+            shlex.quote(repo.basename)
+        ]
         self._set_wkdir(wkdir)._set_cmd(cmd)._run()._set_wkdir(self._local)
+        if add_all:
+            self._set_cmd(["add","."])._run()
+        return self
 
     def status(self):
         self._set_cmd(["status"])._run()
@@ -211,6 +220,7 @@ class GitWrapper():
                 pass
             else:
                 raise
+        return self
 
     def push(self, remote_name="origin", branch="master", with_tags=True, force=False, dry_run=False, prune=False, mirror=False):
         if not self._local.exists:
@@ -227,6 +237,7 @@ class GitWrapper():
             branch
         ]
         self._set_cmd(cmd)._run()
+        return self
 
     def pull(self, remote_name="origin", branch="master", update_submodules=False, no_commit=False,
             no_fast_forward=False, only_fast_forward=False, rebase=False):
@@ -244,42 +255,23 @@ class GitWrapper():
             branch
         ]
         self._set_cmd(cmd)._run()
+        return self
 
     def clone(self, remote_address, target_directory=None, bare=False, recursive=True,
                 branch=None, no_checkout=False):
         if target_directory is not None:
             target_directory = Path(target_directory)
-            self._set_wkdir(tg.dirname)
+            self._set_wkdir(target_directory.dirname)
         cmd = [
-            "clone", shlex.quote(remote_address),
-            shlex.quote(Path(tg).basename) if target_directory is not None else "",
+            "clone",
             "--bare" if bare else "",
             "--recursive" if recursive else "",
             "--branch {}".format(shlex.quote(branch)) if branch is not None else "",
             "--no-checkout" if no_checkout else "",
+            remote_address,
+##            shlex.quote(Path(remote_address).nice_full_path),
+            shlex.quote(Path(target_directory).basename) if target_directory is not None else ""
         ]
         self._set_cmd(cmd)._run()
+        return self
 
-def main():
-    t = GitWrapper("test init")
-    t.init()
-##    print(t)
-    t.status()
-##    print(t)
-    t.commit(msg="caribou meuh tchoutchou")
-##    p = t._out.split("\n")
-##    for x in p:
-##        print(x)
-    print(t)
-##    print(t)
-##    t.commit(files="file1")
-##    print(t)
-##    t.commit(files=["files 1","file 2"])
-##    print(t)
-####    t.commit(files=None) # MUST RAISE EXCEPTION
-    t = GitWrapper("test init 2")
-    print(t)
-
-
-if __name__ == '__main__':
-    main()

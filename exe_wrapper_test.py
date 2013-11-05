@@ -19,6 +19,8 @@ import random
 import shutil
 import hashlib
 import shutil_rmtree
+import posixpath
+import glob
 
 import exe_wrapper
 import git_exceptions
@@ -31,9 +33,18 @@ def make_random_file(in_folder):
         os.makedirs(in_folder)
     file_name = random_string(chars="ABCDEFGH")
     file_path = os.path.join(in_folder, file_name)
+    if os.path.exists(file_path):
+        return make_random_file(in_folder)
     with open(file_path, mode="w") as f:
         f.write(random_string(size=64))
     return os.path.abspath(file_path)
+
+def make_random_dir(in_folder):
+    folder_path = os.path.join(in_folder, random_string(chars="ABCDEFGH"))
+    if os.path.exists(folder_path):
+        return make_random_dir(in_folder)
+    os.makedirs(folder_path)
+    return os.path.abspath(folder_path)
 
 def file_hash(f, blocksize=65536):
     hasher = hashlib.sha1()
@@ -47,16 +58,17 @@ def file_hash(f, blocksize=65536):
 class TestExeWrapper(unittest.TestCase):
 
     main_dir = "./tests/exe_wrapper"
-    files = []
-    repos = ["./tests/exe_wrapper/repo{}".format(f) for f in range(10)]
 
     def setUp(self):
         if not os.path.exists(self.main_dir):
             os.makedirs(self.main_dir)
+        else:
+            remove(self.main_dir)
+        make_random_file(self.main_dir)
 
-    def tearDown(self):
-        remove(self.main_dir)
-        pass
+##    def tearDown(self):
+##        remove(self.main_dir)
+##        pass
 
     def test_set_wk_dir(self):
         d = os.path.join(self.main_dir, "test_set_wk_dir")
@@ -94,35 +106,69 @@ class TestExeWrapper(unittest.TestCase):
         with self.assertRaises(git_exceptions.GitWrapperException):
             t = exe_wrapper.GitWrapper(f)
             t.init()
-        d = os.path.join(self.main_dir, "test_init_bare")
-        t = exe_wrapper.GitWrapper(d)
-        t.init(bare=True)
-
-    def test_init_bare(self):
-        d = os.path.join(self.main_dir, "test_init_bare")
-
-    def test_init_existing(self):
-        d = os.path.join(self.main_dir, "test_init_existing")
-
-    def test_init_bare_existing(self):
-        d = os.path.join(self.main_dir, "test_init_bare_existing")
-
-    def test_init_existing_non_empty(self):
-        d = os.path.join(self.main_dir, "test_init_existing_non_empty")
-        return
-        os.makedirs(d)
-        with open(os.path.join(d, "test_file"), mode="w") as f:
-            f.write("test")
-        exe_wrapper.init(d)
-
-    def test_init_bare_existing_non_empty(self):
-        d = os.path.join(self.main_dir, "test_init_bare_existing_non_empty")
-        return
-        os.makedirs(d)
-        with open(os.path.join(d, "test_file"), mode="w") as f:
-            f.write("test")
         with self.assertRaises(exe_wrapper.GitWrapperException):
-            exe_wrapper.init(d, bare=True)
+            subd = make_random_dir(d)
+            make_random_file(subd)
+            t = exe_wrapper.GitWrapper(subd, must_be_empty=True)
+
+##    def test_status(self):
+##        d = os.path.join(self.main_dir, "test_status")
+##        t = exe_wrapper.GitWrapper(d)
+##        with self.assertRaises(git_exceptions.GitWrapperException):
+##            t.status()
+##        t.init()
+##        t.status()
+
+    def test_commit(self):
+        d = os.path.join(self.main_dir, "test_commit")
+        for x in range(10):
+            make_random_file(d)
+        t = exe_wrapper.GitWrapper(d)
+        with self.assertRaises(git_exceptions.GitWrapperException):
+            t.init().commit()
+        t.init(add_all=True).commit()
+
+    def test_clone(self):
+        d = os.path.join(self.main_dir, "test_clone")
+        d1 = make_random_dir(d)
+        d2 = make_random_dir(d)
+        for x in range(10):
+            make_random_file(d1)
+        t1 = exe_wrapper.GitWrapper(d1).init(add_all=True).commit()
+        t2 = exe_wrapper.GitWrapper(d2).clone(d1)
+        print(t2)
+##        t2 = exe_wrapper.GitWrapper(d2).clone("/{}".format(d1.replace("\\", "/").replace(":","")))
+##        print("/{}".format(d1.replace("\\", "/").replace(":","")))
+##        print(t2._cmd)
+
+
+##    def test_init_bare(self):
+##        d = os.path.join(self.main_dir, "test_init_bare")
+##        t = exe_wrapper.GitWrapper(d)
+##        t.init(bare=True)
+##
+##    def test_init_existing(self):
+##        d = os.path.join(self.main_dir, "test_init_existing")
+##
+##    def test_init_bare_existing(self):
+##        d = os.path.join(self.main_dir, "test_init_bare_existing")
+##
+##    def test_init_existing_non_empty(self):
+##        d = os.path.join(self.main_dir, "test_init_existing_non_empty")
+##        return
+##        os.makedirs(d)
+##        with open(os.path.join(d, "test_file"), mode="w") as f:
+##            f.write("test")
+##        exe_wrapper.init(d)
+##
+##    def test_init_bare_existing_non_empty(self):
+##        d = os.path.join(self.main_dir, "test_init_bare_existing_non_empty")
+##        return
+##        os.makedirs(d)
+##        with open(os.path.join(d, "test_file"), mode="w") as f:
+##            f.write("test")
+##        with self.assertRaises(exe_wrapper.GitWrapperException):
+##            exe_wrapper.init(d, bare=True)
 
 def remove(d):
     shutil.rmtree(d, onerror=shutil_rmtree.onerror)

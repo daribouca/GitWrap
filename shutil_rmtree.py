@@ -10,6 +10,9 @@
 #-------------------------------------------------------------------------------
 #!/usr/bin/env python
 
+import os
+import stat
+
 def onerror(func, path, exc_info):
     """
     Error handler for ``shutil.rmtree``.
