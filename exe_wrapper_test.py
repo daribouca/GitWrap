@@ -58,11 +58,27 @@ def file_hash(f, blocksize=65536):
 
 def repos_are_identical(list_of_repos):
     l = os.listdir(list_of_repos[0].full_path)
+    p = set()
+    p.add(list_of_repos[0].full_path)
     for r in list_of_repos[1:]:
+        p.add(r.full_path)
         l += os.listdir(r.full_path)
-    print(l)
     l = set(l)
+    print(p)
+    l.remove(".git")
     print(l)
+
+    for x in l:
+        fl = []
+        for z in p:
+            f = os.path.join(z, x)
+            if not os.path.exists(f):
+                return False
+            fl.append(f)
+        fh = file_hash(fl[0])
+        for z in fl[1:]:
+            if not file_hash(z) == fh:
+                return False
     return True
 ##        files = os.listdir(r.full_path)
 ##        for f in files:
