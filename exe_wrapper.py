@@ -242,13 +242,13 @@ class GitWrapper():
         branch = shlex.quote(branch) if branch else ""
         cmd = [
             "push",
+            remote_name,
+            branch,
             "--tags" if with_tags else "",
             "--force" if force else "",
             "--prune" if prune else "",
             "-n" if dry_run else "",
             "--mirror" if mirror else "",
-            remote_name,
-            branch
         ]
         self._set_wkdir(self._local)._set_cmd(cmd)._run()
         return self
