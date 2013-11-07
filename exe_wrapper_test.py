@@ -168,6 +168,8 @@ class TestExeWrapper(unittest.TestCase):
         d = os.path.join(self.main_dir, "test_push")
         d1 = make_random_dir(d)
         d2 = make_random_dir(d)
+        for x in range(10):
+            make_random_file(d1)
         t1 = exe_wrapper.GitWrapper(d1).init(add_all=True).commit()
         self.assertEqual(d1.lower(), t1.full_path)
         t2 = exe_wrapper.GitWrapper(d2).clone(d1)
