@@ -268,7 +268,7 @@ class GitWrapper():
             remote_name,
             branch
         ]
-        self._set_cmd(cmd)._run()
+        self._set_wkdir(self._local)._set_cmd(cmd)._run()
         return self
 
     def clone(self, remote_address, target_directory=None, bare=False, recursive=True,
