@@ -248,7 +248,7 @@ class GitWrapper():
             "-n" if dry_run else "",
             "--mirror" if mirror else "",
             remote_name,
-##            branch
+            branch
         ]
         self._set_wkdir(self._local)._set_cmd(cmd)._run()
         return self
