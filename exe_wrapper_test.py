@@ -64,10 +64,7 @@ def repos_are_identical(list_of_repos):
         p.add(r.full_path)
         l += os.listdir(r.full_path)
     l = set(l)
-    print(p)
     l.remove(".git")
-    print(l)
-
     for x in l:
         fl = []
         for z in p:
@@ -80,26 +77,6 @@ def repos_are_identical(list_of_repos):
             if not file_hash(z) == fh:
                 return False
     return True
-##        files = os.listdir(r.full_path)
-##        for f in files:
-##            if f == ".git":
-##                continue
-##            if not f in l1:
-##                return False
-##            f1 = os.path.join(list_of_repos[0].full_path, f)
-##            f2 = os.path.join(r.full_path, f)
-##            if not file_hash(f1) == file_hash(f2):
-##                return False
-##        for f in l1:
-##            if f == ".git":
-##                continue
-##            if not f in files:
-##                return False
-##            f1 = os.path.join(list_of_repos[0].full_path, f)
-##            f2 = os.path.join(r.full_path, f)
-##            if not file_hash(f1) == file_hash(f2):
-##                return False
-##        return True
 
 class TestExeWrapper(unittest.TestCase):
 
@@ -213,7 +190,24 @@ class TestExeWrapper(unittest.TestCase):
             make_random_file(d2)
         t2.commit().status().push()
         self.assertTrue(repos_are_identical([t1,t2]))
-##        print(t2)
+
+    def test_pull(self):
+        d = os.path.join(self.main_dir, "test_pull")
+        d1 = make_random_dir(d)
+        d2 = make_random_dir(d)
+        for x in range(10):
+            make_random_file(d1)
+        t1 = exe_wrapper.GitWrapper(d1).init(add_all=True).commit()
+        self.assertEqual(d1.lower(), t1.full_path)
+        t2 = exe_wrapper.GitWrapper(d2).clone(d1)
+        self.assertTrue(repos_are_identical([t1,t2]))
+        self.assertEqual(os.path.join(d2, os.path.basename(d1)).lower(), t2.full_path)
+        for x in range(10):
+            make_random_file(d1)
+        t1.commit()
+        t2.commit().status().pull()
+        self.assertTrue(repos_are_identical([t1,t2]))
+
 
 
 
