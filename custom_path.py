@@ -14,6 +14,8 @@ import os
 import shutil
 import shutil_rmtree
 
+d_sizes = ["","kb","mb","gb"]
+
 class Path():
     def __init__(self, p):
         if isinstance(p, Path):
@@ -79,3 +81,48 @@ class Path():
             os.remove(self.full_path)
         elif self.isadir:
             shutil.rmtree(self.full_path, onerror=shutil_rmtree.onerror)
+
+class File(Path):
+    def __init__(self, p):
+        super().__init__(p)
+        if not self.isafile:
+            raise Exception("not a File: {}".format(p))
+        self._stat = os.stat(self.full_path)
+
+    @property
+    def size(self):
+        return self._stat.st_size
+
+    @property
+    def nice_size(self):
+        s = self.size
+        u = 0
+        while s > 1024:
+            u += 1
+            s /= 1024
+        return "{:.2f}{}".format(s, d_sizes[u])
+
+class Folder(Path):
+    def __init__(self, p):
+        super().__init__(p)
+        if not self.isadir:
+            raise Exception("not a Folder: {}".format(p))
+        self._stat = os.stat(self.full_path)
+
+    @property
+    def size(self):
+        s = 0
+        for dirpath, dirnames, filenames in os.walk(self.full_path):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                total_size += os.path.getsize(fp)
+        return s
+
+    @property
+    def nice_size(self):
+        s = self.size
+        u = 0
+        while s > 1024:
+            u += 1
+            s /= 1024
+        return "{:.2f}{}".format(s, d_sizes[u])
