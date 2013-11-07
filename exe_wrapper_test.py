@@ -176,19 +176,6 @@ class TestExeWrapper(unittest.TestCase):
         with self.assertRaises(git_exceptions.GitRepositoryAlreadyExistsAndIsNotEmpty):
             t4 = exe_wrapper.GitWrapper(d).clone(t3.full_path)
         self.assertTrue(repos_are_identical([t1,t2,t3]))
-        return
-        l1 = os.listdir(t1.full_path)
-        l2 = os.listdir(t2.full_path)
-        l3 = os.listdir(t3.full_path)
-        for x in l1:
-            self.assertTrue(x in l2)
-            self.assertTrue(x in l3)
-            if x == ".git":
-                continue
-            f1 = os.path.join(t1.full_path, x)
-            f2 = os.path.join(t2.full_path, x)
-            f3 = os.path.join(t3.full_path, x)
-            self.assertTrue(file_hash(f1) == file_hash(f2) == file_hash(f3))
 
     def test_push(self):
         d = os.path.join(self.main_dir, "test_push")
@@ -199,10 +186,12 @@ class TestExeWrapper(unittest.TestCase):
         t1 = exe_wrapper.GitWrapper(d1).init(add_all=True).commit()
         self.assertEqual(d1.lower(), t1.full_path)
         t2 = exe_wrapper.GitWrapper(d2).clone(d1)
+        self.assertTrue(repos_are_identical([t1,t2]))
         self.assertEqual(os.path.join(d2, os.path.basename(d1)).lower(), t2.full_path)
         for x in range(10):
             make_random_file(d2)
         t2.commit().status().push()
+        self.assertTrue(repos_are_identical([t1,t2]))
 ##        print(t2)
 
 
