@@ -205,6 +205,7 @@ class GitWrapper():
 
     def status(self):
         self._set_cmd(["status"])._run()
+        return self
 
     def __str__(self):
         return self._out
