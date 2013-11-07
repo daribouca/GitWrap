@@ -250,7 +250,7 @@ class GitWrapper():
             remote_name,
             branch
         ]
-        self._set_cmd(cmd)._run()
+        self._set_wkdir(self._local)._set_cmd(cmd)._run()
         return self
 
     def pull(self, remote_name="origin", branch="master", update_submodules=False, no_commit=False,
