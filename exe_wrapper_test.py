@@ -174,7 +174,7 @@ class TestExeWrapper(unittest.TestCase):
         self.assertEqual(os.path.join(d2, os.path.basename(d1)).lower(), t2.full_path)
         for x in range(10):
             make_random_file(d2)
-        t2.commit()#.push()
+        t2.commit().status()#.push()
 
 
 
