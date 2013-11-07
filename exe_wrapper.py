@@ -238,7 +238,8 @@ class GitWrapper():
     def push(self, remote_name="origin", branch="master", with_tags=True, force=False, dry_run=False, prune=False, mirror=False):
         if not self._local.exists:
             raise GitWrapperException("PUSH: local repo does not exist yet: {}".format(self._local.full_path))
-        remote_name, branch = shlex.quote(remote_name), shlex.quote(branch)
+        remote_name = shlex.quote(remote_name) if remote_name else ""
+        branch = shlex.quote(branch) if branch else ""
         cmd = [
             "push",
             "--tags" if with_tags else "",
