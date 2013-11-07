@@ -61,6 +61,8 @@ def repos_are_identical(list_of_repos):
     for r in list_of_repos[1:]:
         l += os.listdir(r.full_path)
     print(l)
+    l = set(l)
+    print(l)
     return True
 ##        files = os.listdir(r.full_path)
 ##        for f in files:
