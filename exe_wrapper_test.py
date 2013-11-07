@@ -208,6 +208,13 @@ class TestExeWrapper(unittest.TestCase):
         t2.commit().pull()
         self.assertTrue(repos_are_identical([t1,t2]))
 
+    def test_http_clone(self):
+        d = os.path.join(self.main_dir, "test_http_clone")
+        d1 = make_random_dir(d)
+##        t1 = exe_wrapper.GitWrapper(d1).clone("https://github.com/TDC-bob/modlist")
+        t1 = exe_wrapper.GitWrapper(r"C:\Documents and Settings\owner\My Documents\BORIS\GitWrap\test").clone("https://github.com/TDC-bob/modlist")
+
+
 def remove(d):
     shutil.rmtree(d, onerror=shutil_rmtree.onerror)
 
