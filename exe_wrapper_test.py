@@ -204,14 +204,9 @@ class TestExeWrapper(unittest.TestCase):
         self.assertEqual(os.path.join(d2, os.path.basename(d1)).lower(), t2.full_path)
         for x in range(10):
             make_random_file(d1)
-        t1.commit()
-        print(t1)
+        t1.add().commit()
         t2.commit().pull()
-        print(t2)
         self.assertTrue(repos_are_identical([t1,t2]))
-
-
-
 
 def remove(d):
     shutil.rmtree(d, onerror=shutil_rmtree.onerror)

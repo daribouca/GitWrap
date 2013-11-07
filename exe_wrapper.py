@@ -210,6 +210,28 @@ class GitWrapper():
     def __str__(self):
         return self._out
 
+    def add(self, files=".",):
+        if isinstance(files, str):
+            files=[shlex.quote(files)]
+        elif isinstance(files, list):
+            files = [shlex.quote(f) for f in files]
+        else:
+            raise GitWrapperException("ADD: files can only be STR or LIST\nReceived {} ({})".format(files, type(files)))
+        self._nothing_to_commit = False
+        cmd = [
+            "add"
+        ]
+        for f in files:
+            cmd.append(f)
+        try:
+            self._set_cmd(cmd)._run()
+        except GitWrapperException:
+            if self._nothing_to_commit:
+                pass
+            else:
+                raise
+        return self
+
     def commit(self, files="-a", msg="auto-commit", amend=False, dry_run=False):
         if isinstance(files, str):
             files=[shlex.quote(files)]
@@ -227,7 +249,7 @@ class GitWrapper():
         for f in files:
             cmd.append(f)
         try:
-            self._set_cmd(cmd)._run()
+            self._set_wkdir(self._local)._set_cmd(cmd)._run()
         except GitWrapperException:
             if self._nothing_to_commit:
                 pass
@@ -286,17 +308,10 @@ class GitWrapper():
 ##            shlex.quote(Path(remote_address).nice_full_path),
             shlex.quote(Path(target_directory).basename) if target_directory is not None else ""
         ]
-##        print(self._wkdir.full_path)
-##        print(remote_address)
-##        print(Path(remote_address).basename)
-##        print(os.path.join(self._wkdir.full_path, Path(remote_address).basename))
-##        print(Path(os.path.join(self._wkdir.full_path, Path(remote_address).basename)))
         if target_directory is None:
             self._local = Path(os.path.join(self._wkdir.full_path, Path(remote_address).basename))
         else:
             self._local = Path(target_directory)
-##        print(self._local.basename)
-##        print("fatal: destination path '{}' already exists and is not an empty directory.".format(self._local.basename))
         self._set_cmd(cmd)._run()
         if add_as_origin:
             self._set_cmd([
