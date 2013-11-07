@@ -175,6 +175,7 @@ class TestExeWrapper(unittest.TestCase):
         for x in range(10):
             make_random_file(d2)
         t2.commit().status()#.push()
+        print(t2)
 
 
 
