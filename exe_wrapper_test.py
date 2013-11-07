@@ -205,7 +205,9 @@ class TestExeWrapper(unittest.TestCase):
         for x in range(10):
             make_random_file(d1)
         t1.commit()
-        t2.commit().status().pull()
+        print(t1)
+        t2.commit().pull()
+        print(t2)
         self.assertTrue(repos_are_identical([t1,t2]))
 
 
