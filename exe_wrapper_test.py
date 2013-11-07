@@ -164,6 +164,19 @@ class TestExeWrapper(unittest.TestCase):
             f3 = os.path.join(t3.full_path, x)
             self.assertTrue(file_hash(f1) == file_hash(f2) == file_hash(f3))
 
+    def test_push(self):
+        d = os.path.join(self.main_dir, "test_push")
+        d1 = make_random_dir(d)
+        d2 = make_random_dir(d)
+        t1 = exe_wrapper.GitWrapper(d1).init(add_all=True).commit()
+        self.assertEqual(d1.lower(), t1.full_path)
+        t2 = exe_wrapper.GitWrapper(d2).clone(d1)
+        self.assertEqual(os.path.join(d2, os.path.basename(d1)).lower(), t2.full_path)
+        for x in range(10):
+            make_random_file(d2)
+        t2.commit().push()
+
+
 
 def remove(d):
     shutil.rmtree(d, onerror=shutil_rmtree.onerror)
