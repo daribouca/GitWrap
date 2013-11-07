@@ -272,7 +272,7 @@ class GitWrapper():
         return self
 
     def clone(self, remote_address, target_directory=None, bare=False, recursive=True,
-                branch=None, no_checkout=False):
+                branch=None, no_checkout=False, add_as_origin=False):
         if target_directory is not None:
             target_directory = Path(target_directory)
             self._set_wkdir(target_directory.dirname)
@@ -298,5 +298,12 @@ class GitWrapper():
 ##        print(self._local.basename)
 ##        print("fatal: destination path '{}' already exists and is not an empty directory.".format(self._local.basename))
         self._set_cmd(cmd)._run()
+        if add_as_origin:
+            self._set_cmd([
+                "remote",
+                'add',
+                'origin',
+                remote_address
+            ])._run()
         return self
 
