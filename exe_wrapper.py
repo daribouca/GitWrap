@@ -153,8 +153,7 @@ class GitWrapper():
         self._out += "=======================================\n"
         if self._return_code != 0:
             self._parse_output()
-            print("CMD: {}".format(self._cmd))
-            raise GitWrapperException("RUN: error not handled:\n\nLAST OUT:{}\nLAST ERR:{}\n\nReturn code: {}".format(self._last_outs, self._last_errs, self._return_code))
+            raise GitWrapperException("RUN: error not handled:\n\nCMD:{}\nLAST OUT:{}\nLAST ERR:{}\n\nReturn code: {}".format(self._cmd, self._last_outs, self._last_errs, self._return_code))
         self._parse_output()
         return self
 
