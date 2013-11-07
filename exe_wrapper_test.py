@@ -57,28 +57,31 @@ def file_hash(f, blocksize=65536):
     return hasher.hexdigest()
 
 def repos_are_identical(list_of_repos):
-    l1 = os.listdir(list_of_repos[0].full_path)
+    l = os.listdir(list_of_repos[0].full_path)
     for r in list_of_repos[1:]:
-        files = os.listdir(r.full_path)
-        for f in files:
-            if f == ".git":
-                continue
-            if not f in l1:
-                return False
-            f1 = os.path.join(list_of_repos[0].full_path, f)
-            f2 = os.path.join(r.full_path, f)
-            if not file_hash(f1) == file_hash(f2):
-                return False
-        for f in l1:
-            if f == ".git":
-                continue
-            if not f in files:
-                return False
-            f1 = os.path.join(list_of_repos[0].full_path, f)
-            f2 = os.path.join(r.full_path, f)
-            if not file_hash(f1) == file_hash(f2):
-                return False
-        return True
+        l += os.listdir(r.full_path)
+    print(l)
+    return True
+##        files = os.listdir(r.full_path)
+##        for f in files:
+##            if f == ".git":
+##                continue
+##            if not f in l1:
+##                return False
+##            f1 = os.path.join(list_of_repos[0].full_path, f)
+##            f2 = os.path.join(r.full_path, f)
+##            if not file_hash(f1) == file_hash(f2):
+##                return False
+##        for f in l1:
+##            if f == ".git":
+##                continue
+##            if not f in files:
+##                return False
+##            f1 = os.path.join(list_of_repos[0].full_path, f)
+##            f2 = os.path.join(r.full_path, f)
+##            if not file_hash(f1) == file_hash(f2):
+##                return False
+##        return True
 
 class TestExeWrapper(unittest.TestCase):
 
