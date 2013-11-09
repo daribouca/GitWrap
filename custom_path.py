@@ -13,17 +13,31 @@
 import os
 import shutil
 import shutil_rmtree
+import weakref
 
 d_sizes = ["","kb","mb","gb"]
 
 class Path():
-    def __init__(self, p):
+    _PathPool = weakref.WeakValueDictionary()
+    def __new__(cls, p):
         if isinstance(p, Path):
-            self.p = p.p
+            obj = Path._PathPool.get(p.p, None)
         elif isinstance(p, str):
-            self.p = p
+            obj = Path._PathPool.get(p, None)
         else:
             raise Exception("Path only accepts String or other Path as input")
+        if not obj:
+            obj = object.__new__(cls)
+            Path._PathPool[p] = obj
+            obj.p = p
+        return obj
+##    def __init__(self, p):
+##        if isinstance(p, Path):
+##            self.p = p.p
+##        elif isinstance(p, str):
+##            self.p = p
+##        else:
+##            raise Exception("Path only accepts String or other Path as input")
     @property
     def nice_path(self):
         return os.path.normcase(os.path.normpath(self.p))
@@ -83,11 +97,16 @@ class Path():
             shutil.rmtree(self.full_path, onerror=shutil_rmtree.onerror)
 
 class File(Path):
-    def __init__(self, p):
-        super().__init__(p)
-        if not self.isafile:
-            raise Exception("not a File: {}".format(p))
-        self._stat = os.stat(self.full_path)
+    def __new__(self, p):
+        p = super().__new__(p)
+        if not p.isafile:
+            raise Exception("not a File: {}".format(p.full_path))
+        return p
+##    def __init__(self, p):
+##        super().__init__(p)
+##        if not self.isafile:
+##            raise Exception("not a File: {}".format(p))
+##        self._stat = os.stat(self.full_path)
 
     @property
     def size(self):
@@ -103,11 +122,16 @@ class File(Path):
         return "{:.2f}{}".format(s, d_sizes[u])
 
 class Folder(Path):
-    def __init__(self, p):
-        super().__init__(p)
-        if not self.isadir:
-            raise Exception("not a Folder: {}".format(p))
-        self._stat = os.stat(self.full_path)
+    def __new__(self, p):
+        p = super().__new__(p)
+        if not p.isadir:
+            raise Exception("not a Folder: {}".format(p.full_path))
+        return p
+##    def __init__(self, p):
+##        super().__init__(p)
+##        if not self.isadir:
+##            raise Exception("not a Folder: {}".format(p))
+##        self._stat = os.stat(self.full_path)
 
     @property
     def size(self):

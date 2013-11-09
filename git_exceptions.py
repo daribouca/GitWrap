@@ -16,6 +16,10 @@ class GitWrapperException(Exception):
     def __init__(self, msg):
         logging.error("GitWrapperException: {}".format(msg))
 
-class GitRepositoryAlreadyExistsAndIsNotEmpty(Exception):
+class GitRepositoryAlreadyExistsAndIsNotEmpty(GitWrapperException):
+    def __init__(self, msg):
+        super().__init__(msg)
+
+class CannotFindGitExecutable(GitWrapperException):
     def __init__(self, msg):
         super().__init__(msg)

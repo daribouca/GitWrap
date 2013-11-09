@@ -13,7 +13,8 @@
 from subprocess import Popen, PIPE, TimeoutExpired
 from custom_path import Path
 import git_exceptions
-from git_exceptions import GitWrapperException
+##from git_exceptions import GitWrapperException
+import git_exceptions
 from shutil_rmtree import onerror
 import shlex
 import os
@@ -79,10 +80,10 @@ class GitWrapper():
         if git_exe is not None:
             self.git_exe = Path(git_exe)
         if not self.git_exe.exists:
-            raise GitWrapperException("could not find Git exe: {}".format(self.git_exe))
+            raise git_exceptions.CannotFindGitExecutable("could not find Git exe in path: {}".format(self.git_exe))
         self._local = Path(local_repo)
         if must_be_empty and not self._local.isempty:
-            raise GitWrapperException("local repo is not empty: {}".format(self._local))
+            raise git_exceptions.GitWrapperException("local repo is not empty: {}".format(self._local))
         self._wkdir = Path(self._local)
         self._cmd = None
         self._timeout = 15
@@ -99,29 +100,29 @@ class GitWrapper():
     def _set_wkdir(self, wkdir):
         wkdir = Path(wkdir)
         if not wkdir.exists:
-            raise GitWrapperException("Local working dir does not exist: {}".format(wkdir.full_path))
+            raise git_exceptions.GitWrapperException("Local working dir does not exist: {}".format(wkdir.full_path))
         self._wkdir = wkdir
         return self
 
     def set_timeout(self, timeout):
         if not isinstance(timeout, int) or 1 > timeout or timeout > 120:
-            raise GitWrapperException("Invalid timeout: {}".format(timeout))
+            raise git_exceptions.GitWrapperException("Invalid timeout: {}".format(timeout))
         self._timeout = timeout
         return self
 
     def _set_cmd(self, cmd):
         if not isinstance(cmd, list):
-            raise GitWrapperException("CMD must be a LIST of STR: {}".format(cmd))
+            raise git_exceptions.GitWrapperException("CMD must be a LIST of STR: {}".format(cmd))
         for x in cmd:
             if not isinstance(x, str):
-                raise GitWrapperException("CMD must be a LIST of STR: {}\n{} is not a string".format(cmd, x))
+                raise git_exceptions.GitWrapperException("CMD must be a LIST of STR: {}\n{} is not a string".format(cmd, x))
         self._cmd = [x for x in cmd if x != ""]
         self._cmd.insert(0, self.git_exe.full_path)
         return self
 
     def _run(self):
         if not self._wkdir.exists:
-            raise GitWrapperException("RUN: WKDIR does not exist: {}".format(self._wkdir.nice_full_path))
+            raise git_exceptions.GitWrapperException("RUN: WKDIR does not exist: {}".format(self._wkdir.nice_full_path))
         self._running = True
         self._out += "WKDIR: {}\n".format(self._wkdir.nice_full_path)
         self._out += "RUNNING: {}\n".format(self._cmd)
@@ -153,7 +154,7 @@ class GitWrapper():
         self._out += "=======================================\n"
         if self._return_code != 0:
             self._parse_output()
-            raise GitWrapperException("RUN: error not handled:\n\nCMD:{}\nWKDIR:{}\nLAST OUT:{}\nLAST ERR:{}\n\nReturn code: {}".format(self._cmd, self._wkdir, self._last_outs, self._last_errs, self._return_code))
+            raise git_exceptions.GitWrapperException("RUN: error not handled:\n\nCMD:{}\nWKDIR:{}\nLAST OUT:{}\nLAST ERR:{}\n\nReturn code: {}".format(self._cmd, self._wkdir, self._last_outs, self._last_errs, self._return_code))
         self._parse_output()
         return self
 
@@ -192,7 +193,7 @@ class GitWrapper():
         repo = Path(self._local.basename)
         if self._local.exists:
             if self._local.isafile:
-                raise GitWrapperException("INIT: local repository is a file: {}".format(repo))
+                raise git_exceptions.GitWrapperException("INIT: local repository is a file: {}".format(repo))
         cmd = [
             "init",
             "--bare" if bare else "",
@@ -216,7 +217,7 @@ class GitWrapper():
         elif isinstance(files, list):
             files = [shlex.quote(f) for f in files]
         else:
-            raise GitWrapperException("ADD: files can only be STR or LIST\nReceived {} ({})".format(files, type(files)))
+            raise git_exceptions.GitWrapperException("ADD: files can only be STR or LIST\nReceived {} ({})".format(files, type(files)))
         self._nothing_to_commit = False
         cmd = [
             "add"
@@ -225,7 +226,7 @@ class GitWrapper():
             cmd.append(f)
         try:
             self._set_cmd(cmd)._run()
-        except GitWrapperException:
+        except git_exceptions.GitWrapperException:
             if self._nothing_to_commit:
                 pass
             else:
@@ -238,7 +239,7 @@ class GitWrapper():
         elif isinstance(files, list):
             files = [shlex.quote(f) for f in files]
         else:
-            raise GitWrapperException("COMMIT: files can only be STR or LIST\nReceived {} ({})".format(files, type(files)))
+            raise git_exceptions.GitWrapperException("COMMIT: files can only be STR or LIST\nReceived {} ({})".format(files, type(files)))
         self._nothing_to_commit = False
         cmd = [
             "commit",
@@ -250,7 +251,7 @@ class GitWrapper():
             cmd.append(f)
         try:
             self._set_wkdir(self._local)._set_cmd(cmd)._run()
-        except GitWrapperException:
+        except git_exceptions.GitWrapperException:
             if self._nothing_to_commit:
                 pass
             else:
@@ -259,7 +260,7 @@ class GitWrapper():
 
     def push(self, remote_name="origin", branch="master", with_tags=True, force=False, dry_run=False, prune=False, mirror=False):
         if not self._local.exists:
-            raise GitWrapperException("PUSH: local repo does not exist yet: {}".format(self._local.full_path))
+            raise git_exceptions.GitWrapperException("PUSH: local repo does not exist yet: {}".format(self._local.full_path))
         remote_name = shlex.quote(remote_name) if remote_name else ""
         branch = shlex.quote(branch) if branch else ""
         cmd = [
@@ -278,7 +279,7 @@ class GitWrapper():
     def pull(self, remote_name="origin", branch="master", update_submodules=False, no_commit=False,
             no_fast_forward=False, only_fast_forward=False, rebase=False):
         if not self._local.exists:
-            raise GitWrapperException("PULL: local repo does not exist yet: {}".format(self._local.full_path))
+            raise git_exceptions.GitWrapperException("PULL: local repo does not exist yet: {}".format(self._local.full_path))
         remote_name, branch = shlex.quote(remote_name), shlex.quote(branch)
         cmd = [
             "pull",

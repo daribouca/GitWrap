@@ -128,7 +128,7 @@ class TestExeWrapper(unittest.TestCase):
         with self.assertRaises(git_exceptions.GitWrapperException):
             t = exe_wrapper.GitWrapper(f)
             t.init()
-        with self.assertRaises(exe_wrapper.GitWrapperException):
+        with self.assertRaises(git_exceptions.GitWrapperException):
             subd = make_random_dir(d)
             make_random_file(subd)
             t = exe_wrapper.GitWrapper(subd, must_be_empty=True)
@@ -211,9 +211,7 @@ class TestExeWrapper(unittest.TestCase):
     def test_http_clone(self):
         d = os.path.join(self.main_dir, "test_http_clone")
         d1 = make_random_dir(d)
-##        t1 = exe_wrapper.GitWrapper(d1).clone("https://github.com/TDC-bob/modlist")
-        t1 = exe_wrapper.GitWrapper(r"C:\Documents and Settings\owner\My Documents\BORIS\GitWrap\test").clone("https://github.com/TDC-bob/modlist")
-
+        t1 = exe_wrapper.GitWrapper(d1).clone("https://github.com/TDC-bob/modlist")
 
 def remove(d):
     shutil.rmtree(d, onerror=shutil_rmtree.onerror)
