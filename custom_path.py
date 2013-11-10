@@ -1,6 +1,6 @@
 #-------------------------------------------------------------------------------
-# Name:        module1
-# Purpose:
+# Name:        custom_path
+# Purpose:     defines versatile File, Repo and Folder objects
 #
 # Author:      owner
 #
@@ -162,14 +162,26 @@ class Folder(Path):
             return True
         return False
 
+class Repo(Folder):
+    def __new__(cls, p):
+        p = super().__new__(cls, p)
+        if p.exists and not p.isarepo:
+            raise Exception("not a Repo: {}".format(p.full_path))
+        return p
+
+
+
+
 if __name__ == "__main__":
-    f = File("custom_path.py")
-    print(f.nice_size)
-    d = Folder("git-portable")
-    print(d.nice_size)
-    f2 = File(f)
-    print(f == f2)
-    print(f is f2)
-    print(f2.full_path)
-    print(f2)
-    print(f2.__repr__())
+##    f = File("custom_path.py")
+##    print(f.nice_size)
+##    d = Folder("git-portable")
+##    print(d.nice_size)
+##    f2 = File(f)
+##    print(f == f2)
+##    print(f is f2)
+##    print(f2.full_path)
+##    print(f2)
+##    print(f2.__repr__())
+    r = Repo(os.getcwd())
+    print(r.isempty)

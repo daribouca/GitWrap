@@ -18,13 +18,13 @@ import string
 import random
 import shutil
 import hashlib
-import shutil_rmtree
 import posixpath
 import glob
 
 import old_exe_wrapper
 import git_exceptions
 import custom_path
+import shutil_rmtree
 
 def random_string(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
