@@ -59,11 +59,14 @@ class GitExeWrapper():
     standard_git_locations = ["git",os.path.abspath("git-portable/bin/git.exe")]
 
     def __init__(self, path_to_git_exe=None):
+        self.look_for_git_in(path_to_git_exe)
+
+    def look_for_git_in(self, path=None):
         self.git_exe = None
-        if path_to_git_exe is not None:
-            self.try_git_in(path_to_git_exe)
+        if path is not None:
+            self.try_git_in(path)
         else:
-            for x in standard_git_locations:
+            for x in GitExeWrapper.standard_git_locations:
                 self.try_git_in(x)
         if self.git_exe is None:
             raise git_exceptions.CannotFindGitExecutable()
@@ -71,7 +74,7 @@ class GitExeWrapper():
     def try_git_in(self, path):
         try:
             subprocess.Popen(path)
-            self.git_exe = x
+            self.git_exe = custom_path.File(path)
         except FileNotFoundError:
             pass
 
@@ -327,6 +330,6 @@ class GitExeWrapper():
 ##        return self
 
 if __name__ == "__main__":
-    git_executable()
-    print(git_exe)
+    g = GitExeWrapper()
+    print(g.git_exe)
 
