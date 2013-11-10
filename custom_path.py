@@ -15,7 +15,7 @@ import shutil
 import shutil_rmtree
 import weakref
 
-d_sizes = ["","kb","mb","gb"]
+d_sizes = ["","KB","MB","GB"]
 
 class Path():
     _PathPool = weakref.WeakValueDictionary()
@@ -30,43 +30,44 @@ class Path():
             obj = object.__new__(cls)
             Path._PathPool[p] = obj
             obj.p = p
+        obj.full_path = obj.abs
+##        obj.__str__ = obj.nice_full_path
+        obj.__repr__ = obj.__str__
         return obj
-##    def __init__(self, p):
-##        if isinstance(p, Path):
-##            self.p = p.p
-##        elif isinstance(p, str):
-##            self.p = p
-##        else:
-##            raise Exception("Path only accepts String or other Path as input")
+
+    def __str__(self):
+        return  self.nice_full_path
+
     @property
     def nice_path(self):
         return os.path.normcase(os.path.normpath(self.p))
+
     @property
     def nice_full_path(self):
         return os.path.normcase(os.path.normpath(self.abs))
-    @property
-    def full_path(self):
-        return self.abs
+
+##    @property
+##    def full_path(self):
+##        return self.abs
+
+
+
     @property
     def abs(self):
         return os.path.abspath(self.p)
+
     @property
     def basename(self):
         return os.path.basename(self.p)
+
     @property
     def isafile(self):
         return self.type == "file"
+
     @property
     def isadir(self):
-        return self.type == "dir"
-    @property
-    def isempty(self):
-        if self.isafile:
-            if os.stat(self.full_path).st_size == 0:
-                return True
-        elif not os.listdir(self.full_path):
-            return True
-        return False
+        return self.type == "dir" or self.type == "repo"
+
     @property
     def type(self):
         if os.path.isdir(self.p):
@@ -77,29 +78,26 @@ class Path():
             return "file"
         else:
             return "other"
+
     @property
     def dirname(self):
         return os.path.dirname(self.abs)
+
     @property
     def exists(self):
         return os.path.exists(self.p)
+
     @property
     def isarepo(self):
         return self.type == "repo"
+
     def __str__(self):
         return self.nice_full_path
-    def __repr__(self):
-        return self.__str__()
-    def remove(self):
-        if self.isafile:
-            os.remove(self.full_path)
-        elif self.isadir:
-            shutil.rmtree(self.full_path, onerror=shutil_rmtree.onerror)
 
 class File(Path):
-    def __new__(self, p):
-        p = super().__new__(p)
-        if not p.isafile:
+    def __new__(cls, p):
+        p = super().__new__(cls, p)
+        if p.exists and not p.isafile:
             raise Exception("not a File: {}".format(p.full_path))
         return p
 ##    def __init__(self, p):
@@ -110,7 +108,7 @@ class File(Path):
 
     @property
     def size(self):
-        return self._stat.st_size
+        return os.path.getsize(self.full_path)
 
     @property
     def nice_size(self):
@@ -121,26 +119,30 @@ class File(Path):
             s /= 1024
         return "{:.2f}{}".format(s, d_sizes[u])
 
+    def remove(self):
+        os.remove(self.full_path)
+
+    @property
+    def isempty(self):
+        if os.stat(self.full_path).st_size == 0:
+            return True
+        return False
+
 class Folder(Path):
-    def __new__(self, p):
-        p = super().__new__(p)
-        if not p.isadir:
+    def __new__(cls, p):
+        p = super().__new__(cls, p)
+        if p.exists and not p.isadir:
             raise Exception("not a Folder: {}".format(p.full_path))
         return p
-##    def __init__(self, p):
-##        super().__init__(p)
-##        if not self.isadir:
-##            raise Exception("not a Folder: {}".format(p))
-##        self._stat = os.stat(self.full_path)
 
     @property
     def size(self):
-        s = 0
+        total_size = 0
         for dirpath, dirnames, filenames in os.walk(self.full_path):
             for f in filenames:
                 fp = os.path.join(dirpath, f)
                 total_size += os.path.getsize(fp)
-        return s
+        return total_size
 
     @property
     def nice_size(self):
@@ -150,3 +152,24 @@ class Folder(Path):
             u += 1
             s /= 1024
         return "{:.2f}{}".format(s, d_sizes[u])
+
+    def remove(self):
+        shutil.rmtree(self.full_path, onerror=shutil_rmtree.onerror)
+
+    @property
+    def isempty(self):
+        if not os.listdir(self.full_path):
+            return True
+        return False
+
+if __name__ == "__main__":
+    f = File("custom_path.py")
+    print(f.nice_size)
+    d = Folder("git-portable")
+    print(d.nice_size)
+    f2 = File(f)
+    print(f == f2)
+    print(f is f2)
+    print(f2.full_path)
+    print(f2)
+    print(f2.__repr__())

@@ -22,7 +22,7 @@ import shutil_rmtree
 import posixpath
 import glob
 
-import exe_wrapper
+import old_exe_wrapper
 import git_exceptions
 import custom_path
 
@@ -80,7 +80,7 @@ def repos_are_identical(list_of_repos):
 
 class TestExeWrapper(unittest.TestCase):
 
-    main_dir = "./tests/exe_wrapper"
+    main_dir = "./tests/old_exe_wrapper"
 
     def setUp(self):
         if not os.path.exists(self.main_dir):
@@ -94,14 +94,14 @@ class TestExeWrapper(unittest.TestCase):
 
     def test_set_wk_dir(self):
         d = os.path.join(self.main_dir, "test_set_wk_dir")
-        t = exe_wrapper.GitWrapper(d)
+        t = old_exe_wrapper.GitWrapper(d)
         t._set_wkdir(self.main_dir)
         with self.assertRaises(git_exceptions.GitWrapperException):
             t._set_wkdir("this_path_does_not_exist")
 
     def test_set_timeout(self):
         d = os.path.join(self.main_dir, "test_set_timeout")
-        t = exe_wrapper.GitWrapper(d)
+        t = old_exe_wrapper.GitWrapper(d)
         t.set_timeout(1)
         t.set_timeout(120)
         for x in ["str", 0, 121, 1000]:
@@ -110,32 +110,32 @@ class TestExeWrapper(unittest.TestCase):
 
     def test_set_cmd(self):
         d = os.path.join(self.main_dir, "test_set_cmd")
-        t = exe_wrapper.GitWrapper(d)
+        t = old_exe_wrapper.GitWrapper(d)
         t._set_cmd(["test"])
         t._set_cmd(["test","test","test"])
-        for x in [["test",1,"test"], ["test",None,"test"], ["test",False,"test"], ["test",exe_wrapper,"test"]]:
+        for x in [["test",1,"test"], ["test",None,"test"], ["test",False,"test"], ["test",old_exe_wrapper,"test"]]:
             with self.assertRaises(git_exceptions.GitWrapperException):
                 t._set_cmd(x)
 
     def test_init(self):
         d = os.path.join(self.main_dir, "test_init")
-        t = exe_wrapper.GitWrapper(d)
+        t = old_exe_wrapper.GitWrapper(d)
         t.init()
-        t = exe_wrapper.GitWrapper(d, git_exe="C:/Documents and Settings/owner/My Documents/BORIS/live/git-portable/bin/git.exe")
+        t = old_exe_wrapper.GitWrapper(d, git_exe="C:/Documents and Settings/owner/My Documents/BORIS/live/git-portable/bin/git.exe")
         with self.assertRaises(git_exceptions.GitWrapperException):
-            exe_wrapper.GitWrapper(d, git_exe="this path does not exist")
+            old_exe_wrapper.GitWrapper(d, git_exe="this path does not exist")
         f = make_random_file(d)
-        with self.assertRaises(git_exceptions.GitWrapperException):
-            t = exe_wrapper.GitWrapper(f)
+        with self.assertRaises(Exception):
+            t = old_exe_wrapper.GitWrapper(f)
             t.init()
         with self.assertRaises(git_exceptions.GitWrapperException):
             subd = make_random_dir(d)
             make_random_file(subd)
-            t = exe_wrapper.GitWrapper(subd, must_be_empty=True)
+            t = old_exe_wrapper.GitWrapper(subd, must_be_empty=True)
 
     def test_status(self):
         d = os.path.join(self.main_dir, "test_status")
-        t = exe_wrapper.GitWrapper(d)
+        t = old_exe_wrapper.GitWrapper(d)
         with self.assertRaises(git_exceptions.GitWrapperException):
             t.status()
         t.init()
@@ -146,7 +146,7 @@ class TestExeWrapper(unittest.TestCase):
         files = []
         for x in range(10):
             files.append(make_random_file(d))
-        t = exe_wrapper.GitWrapper(d)
+        t = old_exe_wrapper.GitWrapper(d)
         t.init().commit()
         self.assertTrue(t._nothing_to_commit)
         t.init(add_all=True).commit([custom_path.Path(f).basename for f in files[:2]])
@@ -165,14 +165,14 @@ class TestExeWrapper(unittest.TestCase):
         d3 = make_random_dir(d)
         for x in range(10):
             make_random_file(d1)
-        t1 = exe_wrapper.GitWrapper(d1).init(add_all=True).commit()
+        t1 = old_exe_wrapper.GitWrapper(d1).init(add_all=True).commit()
         self.assertEqual(d1.lower(), t1.full_path)
-        t2 = exe_wrapper.GitWrapper(d2).clone(d1)
+        t2 = old_exe_wrapper.GitWrapper(d2).clone(d1)
         self.assertEqual(os.path.join(d2, os.path.basename(d1)).lower(), t2.full_path)
-        t3 = exe_wrapper.GitWrapper("").clone(t2.full_path, target_directory=d3)
+        t3 = old_exe_wrapper.GitWrapper("").clone(t2.full_path, target_directory=d3)
         self.assertEqual(d3.lower(), t3.full_path)
         with self.assertRaises(git_exceptions.GitRepositoryAlreadyExistsAndIsNotEmpty):
-            t4 = exe_wrapper.GitWrapper(d).clone(t3.full_path)
+            t4 = old_exe_wrapper.GitWrapper(d).clone(t3.full_path)
         self.assertTrue(repos_are_identical([t1,t2,t3]))
 
     def test_push(self):
@@ -181,9 +181,9 @@ class TestExeWrapper(unittest.TestCase):
         d2 = make_random_dir(d)
         for x in range(10):
             make_random_file(d1)
-        t1 = exe_wrapper.GitWrapper(d1).init(add_all=True).commit()
+        t1 = old_exe_wrapper.GitWrapper(d1).init(add_all=True).commit()
         self.assertEqual(d1.lower(), t1.full_path)
-        t2 = exe_wrapper.GitWrapper(d2).clone(d1)
+        t2 = old_exe_wrapper.GitWrapper(d2).clone(d1)
         self.assertTrue(repos_are_identical([t1,t2]))
         self.assertEqual(os.path.join(d2, os.path.basename(d1)).lower(), t2.full_path)
         for x in range(10):
@@ -197,9 +197,9 @@ class TestExeWrapper(unittest.TestCase):
         d2 = make_random_dir(d)
         for x in range(10):
             make_random_file(d1)
-        t1 = exe_wrapper.GitWrapper(d1).init(add_all=True).commit()
+        t1 = old_exe_wrapper.GitWrapper(d1).init(add_all=True).commit()
         self.assertEqual(d1.lower(), t1.full_path)
-        t2 = exe_wrapper.GitWrapper(d2).clone(d1)
+        t2 = old_exe_wrapper.GitWrapper(d2).clone(d1)
         self.assertTrue(repos_are_identical([t1,t2]))
         self.assertEqual(os.path.join(d2, os.path.basename(d1)).lower(), t2.full_path)
         for x in range(10):
@@ -211,7 +211,7 @@ class TestExeWrapper(unittest.TestCase):
     def test_http_clone(self):
         d = os.path.join(self.main_dir, "test_http_clone")
         d1 = make_random_dir(d)
-        t1 = exe_wrapper.GitWrapper(d1).clone("https://github.com/TDC-bob/modlist")
+        t1 = old_exe_wrapper.GitWrapper(d1).clone("https://github.com/TDC-bob/modlist")
 
 def remove(d):
     shutil.rmtree(d, onerror=shutil_rmtree.onerror)

@@ -11,7 +11,7 @@
 #!/usr/bin/env python
 
 from subprocess import Popen, PIPE, TimeoutExpired
-from custom_path import Path
+from custom_path import Path, File, Folder
 import git_exceptions
 ##from git_exceptions import GitWrapperException
 import git_exceptions
@@ -81,7 +81,7 @@ class GitWrapper():
             self.git_exe = Path(git_exe)
         if not self.git_exe.exists:
             raise git_exceptions.CannotFindGitExecutable("could not find Git exe in path: {}".format(self.git_exe))
-        self._local = Path(local_repo)
+        self._local = Folder(local_repo)
         if must_be_empty and not self._local.isempty:
             raise git_exceptions.GitWrapperException("local repo is not empty: {}".format(self._local))
         self._wkdir = Path(self._local)

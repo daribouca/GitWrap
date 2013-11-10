@@ -54,7 +54,7 @@ For local repositories, also supported by git natively, the following syntaxes m
 
 """
 
-class ExeWrapper():
+class GitExeWrapper():
 
     standard_git_locations = ["git",os.path.abspath("git-portable/bin/git.exe")]
 
@@ -66,7 +66,7 @@ class ExeWrapper():
             for x in standard_git_locations:
                 self.try_git_in(x)
         if self.git_exe is None:
-            raise git_exceptions.CannotFindGitExecutable("")
+            raise git_exceptions.CannotFindGitExecutable()
 
     def try_git_in(self, path):
         try:

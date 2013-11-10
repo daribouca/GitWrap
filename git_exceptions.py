@@ -13,13 +13,14 @@
 import logging
 
 class GitWrapperException(Exception):
-    def __init__(self, msg):
-        logging.error("GitWrapperException: {}".format(msg))
+    def __init__(self, msg=""):
+        if msg:
+            logging.error(msg)
 
 class GitRepositoryAlreadyExistsAndIsNotEmpty(GitWrapperException):
-    def __init__(self, msg):
+    def __init__(self, msg=""):
         super().__init__(msg)
 
 class CannotFindGitExecutable(GitWrapperException):
-    def __init__(self, msg):
+    def __init__(self, msg=""):
         super().__init__(msg)
